@@ -16,14 +16,13 @@ COPY sources/manifest.json Containerfile.build /provenance/
 RUN echo '99ebe7c673a4d4d0d136f12059efc215c450a7fc26d1713915805d44cb7fb143  /tmp/source.tar.gz' | sha256sum -c - \
     && mkdir /src && tar -xzf /tmp/source.tar.gz -C /src && rm /tmp/source.tar.gz
 WORKDIR /src
-RUN make git-annex BUILDER=./Setup BUILDEROPTIONS='-j2' \
-      BUILDERCOMMONOPTIONS='-f-Assistant -f-Dbus -f-MagicMime -f-Botan -f-Blake3 -f-XXH3 -f-OsPath -f-TastyTap' \
+RUN make tmp/configure-stamp BUILDER=./Setup BUILDERCOMMONOPTIONS='-f-Assistant -f-Dbus -f-MagicMime -f-Botan -f-Blake3 -f-XXH3 -f-OsPath -f-TastyTap' \
+    && make git-annex BUILDER=./Setup BUILDEROPTIONS='-j2' \
     && mkdir -p /opt/baseline /opt/fixed \
     && cp git-annex /opt/baseline/git-annex
 COPY patches/resolve-physical-gitdir.patch /tmp/fix.patch
 RUN patch -p1 < /tmp/fix.patch \
     && make git-annex BUILDER=./Setup BUILDEROPTIONS='-j2' \
-      BUILDERCOMMONOPTIONS='-f-Assistant -f-Dbus -f-MagicMime -f-Botan -f-Blake3 -f-XXH3 -f-OsPath -f-TastyTap' \
     && cp git-annex /opt/fixed/git-annex
 ENV GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null \
     GIT_AUTHOR_NAME=Reproducer GIT_COMMITTER_NAME=Reproducer \

@@ -21,12 +21,17 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Install execution recorder
         run: python3 -m pip install con-duct==0.22.0
+      - name: Identify toolchain recipe
+        id: toolchain-key
+        run: |
+          python3 -c 'import hashlib,pathlib; print("digest=" + hashlib.sha256(pathlib.Path("Containerfile.build").read_bytes().split(b"FROM toolchain AS experiment")[0]).hexdigest())' >> "$GITHUB_OUTPUT"
       - name: Restore toolchain cache
         id: toolchain-cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/git-annex-toolchain.tar
-          key: ghc-linux-amd64-${{ hashFiles('Containerfile.build') }}
+          key: ghc-toolchain-${{ steps.toolchain-key.outputs.digest }}
+          restore-keys: ghc-linux-amd64-
       - name: Prepare pinned toolchain
         run: |
           if test -f "$RUNNER_TEMP/git-annex-toolchain.tar"; then
@@ -41,7 +46,7 @@ jobs:
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ runner.temp }}/git-annex-toolchain.tar
-          key: ghc-linux-amd64-${{ hashFiles('Containerfile.build') }}
+          key: ghc-toolchain-${{ steps.toolchain-key.outputs.digest }}
       - name: Compile and test both variants
         run: |
           mkdir -p "$RUNNER_TEMP/annex-duct"
