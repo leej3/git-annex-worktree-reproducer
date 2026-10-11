@@ -25,3 +25,8 @@ The exploratory standalone image uses a moving download and is retained only as 
 No raw host execution logs, private conversation, or unreviewed upstream comments are published.
 Workshop evidence remains separately classified.
 This research object contains a proposed patch and executable evidence, not an upstream release.
+
+The source build disables optional assistant, D-Bus, libmagic, Botan, BLAKE3, XXH3, OsPath, and TAP support.
+The snapshot supplies file-io 0.1.5, below the source's OsPath requirement of 0.2.0, and lacks tasty-tap.
+Both variants use the same fallback filename API and build flags.
+The non-OsPath path therefore is the compiled regression scope; the earlier standalone reproduction used upstream's own build configuration.
