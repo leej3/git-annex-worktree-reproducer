@@ -7,7 +7,7 @@ export PATH="/opt/$variant:$PATH"
 root=$(mktemp -d /tmp/annex-regression-XXXXXX)
 trap 'rm -rf "$root"' EXIT
 probe() {
-    name=$1 expected=$2
+    name=$1 probe_expected=$2
     if git annex info >"$root/$name.out" 2>"$root/$name.err"; then
         actual=success
     elif grep -q 'changeWorkingDirectory: does not exist' "$root/$name.err"; then
@@ -16,8 +16,8 @@ probe() {
         cat "$root/$name.err" >&2
         actual=unexpected_failure
     fi
-    printf '%s\t%s\t%s\n' "$name" "$expected" "$actual"
-    [ "$actual" = "$expected" ]
+    printf '%s\t%s\t%s\n' "$name" "$probe_expected" "$actual"
+    [ "$actual" = "$probe_expected" ]
 }
 smoke() {
     name=$1
