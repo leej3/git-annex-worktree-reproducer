@@ -35,7 +35,7 @@ def main():
     image = "git-annex-worktree-fix"
     if not args.skip_build:
         subprocess.run([args.engine, "build", "--platform", "linux/amd64", "-t", image,
-                        "-f", "Containerfile.build", "."], cwd=ROOT, check=True)
+                        "--cache-from", "git-annex-toolchain", "-f", "Containerfile.build", "."], cwd=ROOT, check=True)
     prefix = [args.engine, "run", "--rm", "--platform", "linux/amd64", image]
     embedded = json.loads(run(prefix + ["cat", "/provenance/manifest.json"]).stdout)
     assert embedded == manifest, "Image source/patch manifest differs from this checkout"

@@ -2,6 +2,14 @@ name: Compile and compare
 on:
   push:
     branches: [main]
+    paths:
+      - Containerfile.build
+      - sources/**
+      - patches/**
+      - scripts/**
+      - reproduce.sh
+      - trace-paths.sh
+      - .github/workflows/compare.yml
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,6 +21,27 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Install execution recorder
         run: python3 -m pip install con-duct==0.22.0
+      - name: Restore toolchain cache
+        id: toolchain-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/git-annex-toolchain.tar
+          key: ghc-linux-amd64-${{ hashFiles('Containerfile.build') }}
+      - name: Prepare pinned toolchain
+        run: |
+          if test -f "$RUNNER_TEMP/git-annex-toolchain.tar"; then
+            docker load -i "$RUNNER_TEMP/git-annex-toolchain.tar"
+          else
+            mkdir -p "$RUNNER_TEMP/toolchain-duct"
+            duct --fail-time 0 --output-prefix "$RUNNER_TEMP/toolchain-duct/run_" -- docker build --platform linux/amd64 --target toolchain --build-arg BUILDKIT_INLINE_CACHE=1 -t git-annex-toolchain -f Containerfile.build .
+            docker save -o "$RUNNER_TEMP/git-annex-toolchain.tar" git-annex-toolchain
+          fi
+      - name: Save completed toolchain
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/git-annex-toolchain.tar
+          key: ghc-linux-amd64-${{ hashFiles('Containerfile.build') }}
       - name: Compile and test both variants
         run: |
           mkdir -p "$RUNNER_TEMP/annex-duct"

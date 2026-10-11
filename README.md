@@ -22,6 +22,7 @@ python3 scripts/run-experiment.py
 ```
 
 This builds the exact upstream source, preserves an unchanged binary, applies only the patch, and rebuilds a second binary with the same compiler and flags.
+The upstream `Setup` build path uses only the libraries installed from Debian; no Hackage index or additional Cabal package downloads are required.
 It then checks the original reproducer, regression fixtures, annex file-content operations, and selected upstream path properties.
 Each fixture runs in a throwaway container.
 Unexpected failures stop the procedure; results are written only after all required checks finish.
