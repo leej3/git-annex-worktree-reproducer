@@ -14,6 +14,13 @@ The reference JSON and immutable lock are included in `references/`.
 | Ephemeral (E.1) | Fixtures use temporary directories, test containers use `--rm`, and the compilation occurs inside container build stages. Durable evidence is recorded separately from disposable execution state. |
 | Distributable (D.1–D.2) | Source and procedures are available in the public repository. Upstream licenses and STAMPED attribution are preserved. Image digest and package snapshot support reconstruction without a moving package solve. |
 
+## Completed observation
+
+[The recorded comparison](../results/compiled-comparison.json) ties the successful run to its Git commit, source and procedure hashes, installed packages, and distinct binary hashes.
+The original reproducer fails on baseline and succeeds with the patch.
+All 17 regression observations match their expected outcomes; four upstream path properties and six mandatory initialization/add checks pass.
+The [attempt history](build-attempts.md) preserves failed setup and harness attempts without treating them as patch validation.
+
 ## Limits
 
 The experiment verifies behavioral reproduction, not byte-identical rebuilds.

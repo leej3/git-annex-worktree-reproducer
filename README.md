@@ -12,6 +12,17 @@ Ordinary Git finds the correct worktree; `git annex info` tries `/../linked/sub`
 
 See [the source trace](docs/source-trace.md), [the patch](patches/resolve-physical-gitdir.patch), and [the STAMPED evidence map](docs/stamped.md).
 
+## Compiled result
+
+The [completed comparison](results/compiled-comparison.json) was produced by [CI run 38163958614](https://github.com/leej3/git-annex-worktree-reproducer/actions/runs/38163958614).
+Both variants compiled from upstream commit `28ea958bf14a0ce0413b1ae8ac5c30b50e0c038e`, using GHC 9.10.3, Cabal 3.12.1.0, and Git 2.55.0.
+The baseline reproduced `/../linked/sub: changeWorkingDirectory: does not exist`; the patched binary passed the original reproducer.
+All 17 regression observations matched their expected outcomes, including successful annex content operations in the patched linked-worktree submodule.
+Four upstream path properties passed with 1,000 QuickCheck cases each; the same upstream command also passed six required initialization/add checks across locked, unlocked, and adjusted repository modes.
+The full upstream suite was not run.
+
+See the [build attempt history](docs/build-attempts.md) for setup and harness failures preceding this completed result.
+
 ## Compile and repeat the comparison
 
 Requirements: Python 3.9 or newer, a running Docker engine, network access to the pinned Debian image and package snapshot, and several GB of free container disk.
