@@ -1,0 +1,5 @@
+/evidence/git-annex/
+/.cache/
+/results/local/
+*.pyc
+__pycache__/

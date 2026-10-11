@@ -1,0 +1,155 @@
+{- git-annex repository fixups
+ -
+ - Copyright 2013-2025 Joey Hess <id@joeyh.name>
+ -
+ - Licensed under the GNU AGPL version 3 or higher.
+ -}
+
+{-# LANGUAGE OverloadedStrings #-}
+
+module Annex.Fixup where
+
+import Common
+import Git.Types
+import Git.Config
+import Types.GitConfig
+import qualified Utility.RawFilePath as R
+import qualified Utility.OsString as OS
+
+import qualified Data.Map as M
+
+fixupRepo :: Repo -> GitConfig -> IO Repo
+fixupRepo r c = do
+	let r' = disableWildcardExpansion r
+	r'' <- fixupUnusualRepos r' c
+	if annexDirect c
+		then return (fixupDirect r'')
+		else return r''
+
+{- Disable git's built-in wildcard expansion, which is not wanted
+ - when using it as plumbing by git-annex. -}
+disableWildcardExpansion :: Repo -> Repo
+disableWildcardExpansion r = r
+	{ gitGlobalOpts = gitGlobalOpts r ++ [Param "--literal-pathspecs"] }
+
+{- Direct mode repos have core.bare=true, but are not really bare.
+ - Fix up the Repo to be a non-bare repo, and arrange for git commands
+ - run by git-annex to be passed parameters that override this setting. -}
+fixupDirect :: Repo -> Repo
+fixupDirect r@(Repo { location = l@(Local { gitdir = d, worktree = Nothing }) }) = do
+	r
+		{ location = l { worktree = Just (parentDir d) }
+		, gitGlobalOpts = gitGlobalOpts r ++
+			[ Param "-c"
+			, Param $ fromConfigKey coreBare ++ "=" ++ boolConfig False
+			]
+		}
+fixupDirect r = r
+
+{- Submodules have their gitdir containing ".git/modules/", and
+ - have core.worktree set, and also have a .git file in the top
+ - of the repo. We need to unset core.worktree, and change the .git
+ - file into a symlink to the git directory. This way, annex symlinks will be
+ - of the usual .git/annex/object form, and will consistently work
+ - whether a repo is used as a submodule or not, and wheverever the
+ - submodule is mounted.
+ -
+ - git-worktree directories have a .git file which points to a different
+ - git directory than the main git directory. That needs to be converted to
+ - a symlink, and .git/annex made a symlink to the main repository's 
+ - git-annex directory so that annex symlinks in the git repository point
+ - to the object files. When the filesystem does not support symlinks, the
+ - mainWorkTreePath of the repository is set, so that the git-annex
+ - directory of the main repository will still be used.
+ -
+ - The worktree shares git config with the main repository, so the same
+ - annex uuid and other configuration will be used in the worktree as in
+ - the main repository.
+ -
+ - git clone or init with --separate-git-dir similarly makes a .git file,
+ - which in that case points to a different git directory. It's
+ - also converted to a symlink so links to .git/annex will work. 
+ - 
+ - When the filesystem doesn't support symlinks, we cannot make .git
+ - into a symlink. But we don't need too, since the repo will use adjusted
+ - unlocked branches.
+ -
+ - Don't do any of this if the repo has not been initialized for git-annex
+ - use yet. Except, do set mainWorkTreePath.
+ -}
+fixupUnusualRepos :: Repo -> GitConfig -> IO Repo
+fixupUnusualRepos r@(Repo { location = Local { worktree = Just w, gitdir = d } }) c
+	| isNothing (annexVersion c) =
+		ifM (needsGitLinkFixup r)
+			( setworktreepath r
+			, return r
+			)
+	| needsSubmoduleFixup r = do
+		when (coreSymlinks c) $
+			(replacedotgit >> unsetcoreworktree)
+				`catchNonAsync` \e -> hPutStrLn stderr $
+					"warning: unable to convert submodule to form that will work with git-annex: " ++ show e
+		return $ r
+			{ config = M.delete "core.worktree" (config r)
+			}
+	| otherwise = ifM (needsGitLinkFixup r)
+		( do
+			if coreSymlinks c
+				then do
+					(replacedotgit >> worktreefixup)
+						`catchNonAsync` \e -> hPutStrLn stderr $
+							"warning: unable to convert .git file to symlink that will work with git-annex: " ++ show e
+					setworktreepath r
+				else setworktreepath r
+		, return r
+		)
+  where
+	dotgit = w </> literalOsPath ".git"
+
+	replacedotgit = whenM (doesFileExist dotgit) $ do
+		linktarget <- relPathDirToFile w d
+		removeWhenExistsWith removeFile dotgit
+		R.createSymbolicLink (fromOsPath linktarget) (fromOsPath dotgit)
+	
+	-- Unsetting a config fails if it's not set, so ignore failure.
+	unsetcoreworktree = void $ Git.Config.unset "core.worktree" r
+		
+	-- git-worktree sets up a "commondir" file that contains
+	-- the path to the main git directory.
+	-- Using --separate-git-dir does not.
+	commondirfile = d </> literalOsPath "commondir"
+	
+	readcommondirfile = catchDefaultIO Nothing $
+		fmap toOsPath . headMaybe . lines
+			<$> readFileString commondirfile
+
+	setworktreepath r' = readcommondirfile >>= \case
+		Just gd -> return $ r'
+			{ mainWorkTreePath = Just gd
+			}
+		Nothing -> return r'
+
+	worktreefixup = readcommondirfile >>= \case
+		Just gd -> do
+			-- Make the worktree's git directory
+			-- contain an annex symlink to the main
+			-- repository's annex directory.
+			let linktarget = gd </> literalOsPath "annex"
+			R.createSymbolicLink (fromOsPath linktarget) $
+				fromOsPath $ dotgit </> literalOsPath "annex"
+		Nothing -> return ()
+fixupUnusualRepos r _ = return r
+
+needsSubmoduleFixup :: Repo -> Bool
+needsSubmoduleFixup (Repo { location = (Local { worktree = Just _, gitdir = d }) }) =
+	(literalOsPath ".git" </> literalOsPath "modules") `OS.isInfixOf` d
+needsSubmoduleFixup _ = False
+
+needsGitLinkFixup :: Repo -> IO Bool
+needsGitLinkFixup (Repo { location = (Local { worktree = Just wt, gitdir = d }) })
+	-- Optimization: Avoid statting .git in the common case; only
+	-- when the gitdir is not in the usual place inside the worktree
+	-- might .git be a file.
+	| wt </> literalOsPath ".git" == d = return False
+	| otherwise = doesFileExist (wt </> literalOsPath ".git")
+needsGitLinkFixup _ = return False

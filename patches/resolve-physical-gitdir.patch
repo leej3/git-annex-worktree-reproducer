@@ -1,0 +1,12 @@
+--- a/Git/Config.hs
++++ b/Git/Config.hs
+@@ -182,7 +182,8 @@
+ 		Nothing -> return l
+ 		Just (ConfigValue d) -> do
+ 			{- core.worktree is relative to the gitdir -}
+-			top <- absPath (gitdir l)
++			-- Resolve .git symlinks before simplifying relative paths.
++			top <- canonicalizePath (gitdir l)
+ 			let p = absPathFrom top (toOsPath d)
+ 			return $ l { worktree = Just p }
+ 		Just NoConfigValue -> return l

@@ -1,0 +1,35 @@
+# Previous pinned Debian reproducer:
+# FROM docker.io/library/debian:trixie-20261005-slim
+# Freeze all package candidates, including transitive dependencies.
+# RUN printf '%s\n' \
+#       'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20261005T000000Z trixie main' \
+#       'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20261005T000000Z trixie-updates main' \
+#       'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20261005T000000Z trixie-security main' \
+#       > /etc/apt/sources.list \
+#     && rm /etc/apt/sources.list.d/debian.sources \
+#     && apt-get update \
+#     && apt-get install -y --no-install-recommends \
+#       git=1:2.47.3-0+deb13u1 git-annex=10.20250416-2 \
+#     && rm -rf /var/lib/apt/lists/*
+
+FROM docker.io/library/debian:sid-slim
+# Debian's git-annex package can lag behind upstream's latest release.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      git curl ca-certificates xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+RUN case "$(dpkg --print-architecture)" in \
+      amd64|arm64) annex_arch=$(dpkg --print-architecture) ;; \
+      *) echo 'Unsupported architecture for standalone git-annex' >&2; exit 1 ;; \
+    esac \
+    && curl -fL --retry 3 \
+      "https://downloads.kitenet.net/git-annex/linux/current/git-annex-standalone-${annex_arch}.tar.gz" \
+      -o /tmp/git-annex.tar.gz \
+    && tar -xzf /tmp/git-annex.tar.gz -C /opt \
+    && ln -s /opt/git-annex.linux/git-annex /usr/local/bin/git-annex \
+    && rm /tmp/git-annex.tar.gz
+ENV GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null \
+    GIT_AUTHOR_NAME=Reproducer GIT_COMMITTER_NAME=Reproducer \
+    GIT_AUTHOR_EMAIL=repro@example.invalid GIT_COMMITTER_EMAIL=repro@example.invalid
+COPY reproduce.sh /reproduce.sh
+CMD ["sh", "-c", "cat /etc/debian_version; uname -m; git --version; git annex version --raw; echo; exec sh /reproduce.sh"]

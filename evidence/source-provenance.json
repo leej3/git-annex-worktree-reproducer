@@ -1,0 +1,47 @@
+{
+  "upstream": "git://git-annex.branchable.com/",
+  "revision": "28ea958bf14a0ce0413b1ae8ac5c30b50e0c038e",
+  "binary_version": "10.20261006-g28ea958bf14a0ce0413b1ae8ac5c30b50e0c038e",
+  "files": [
+    {
+      "local": "source/CurrentRepo.hs",
+      "upstream": "Git/CurrentRepo.hs",
+      "sha256": "bf25fde5526675a273626e6e9ed21314337b7389f6293332e99feabf7ebf345f"
+    },
+    {
+      "local": "source/Config.hs",
+      "upstream": "Git/Config.hs",
+      "sha256": "39725e6ff6b6d21d5b1012837b44510d8626411532ed552e5491d305c787670e"
+    },
+    {
+      "local": "source/Construct.hs",
+      "upstream": "Git/Construct.hs",
+      "sha256": "8b887017a460d7980ec9e1cad4f2d718e01f328c766868dcd4f20e527389675f"
+    },
+    {
+      "local": "source/AbsRel.hs",
+      "upstream": "Utility/Path/AbsRel.hs",
+      "sha256": "7f25fe3b1a3c7b0d08641d7c1f2acc8d7aba1a71bd999b2081d20d2ef92dee21"
+    },
+    {
+      "local": "source/Path.hs",
+      "upstream": "Utility/Path.hs",
+      "sha256": "5e2abb9453cc84d4655cdee13b7f3103612a0b0c027ac234e78c532ee081506d"
+    },
+    {
+      "local": "source/Fixup.hs",
+      "upstream": "Annex/Fixup.hs",
+      "sha256": "86db017190417cd87729e3c4fad5f18162be20cddfbc45d01f7fdb20a86d856c"
+    },
+    {
+      "local": "source/Init.hs",
+      "upstream": "Annex/Init.hs",
+      "sha256": "0e77b666ee71e8aad19357b8ef99bad6149d218edfdd20cff8947ba73cb26266"
+    },
+    {
+      "local": "source/GitAnnex.hs",
+      "upstream": "CmdLine/GitAnnex.hs",
+      "sha256": "baa20ae7c4472f5d40aefa3f1bcd5b72eea4d5188bdacd40fd7ee9e0e2cef4cd"
+    }
+  ]
+}

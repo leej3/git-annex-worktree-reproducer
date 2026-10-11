@@ -1,0 +1,50 @@
+Historical source-trace findings (before compiling a patch)
+
+Confirmed git-annex path-discovery defect
+
+Source revision: 28ea958bf14a0ce0413b1ae8ac5c30b50e0c038e
+Binary: 10.20261006-g28ea958bf14a0ce0413b1ae8ac5c30b50e0c038e
+Git: 2.55.0, Debian sid, linux/amd64 container on an arm64 host.
+
+Root cause has two parts:
+1. Annex/Fixup.hs:143-146 recognizes a submodule by the substring
+   .git/modules. The worktree submodule has .git/worktrees/linked/modules,
+   so it misses this test. The generic branch at 95-104 converts the gitdir
+   file into a symlink, without the unsetcoreworktree action at 87-94.
+   Annex/Init.hs:182 and 519-522 call this after initialization.
+2. On the next command, Git.Construct.checkForRepo (241-260) sees
+   .git/config through the symlink and creates LocalUnknown worktree.
+   Git.Config.updateLocation (153-174) supplies worktree/.git as gitdir.
+   Git.Config.updateLocation' (179-189) resolves core.worktree using
+   absPath (gitdir l), then absPathFrom top d. AbsRel.hs:37-54 and
+   Path.hs:61-75 simplify path components lexically; neither follows
+   symlinks. This loses the physical gitdir base. Git.CurrentRepo.get
+   (42-51) then calls setCurrentDirectory on the resulting bad path.
+
+In this layout, core.worktree is ../../../../../../linked/sub.
+Physical metadata base: <temp>/main/.git/worktrees/linked/modules/sub
+Recorded lexical base: <temp>/linked/sub/.git (symlink to metadata)
+Physical traversal yields: <temp>/linked/sub
+Lexical simplification yields: /../linked/sub (observed error)
+
+Controlled experiment (trace-paths.sh):
+- Verify .git starts as a gitdir file.
+- Verify init makes it a symlink and leaves core.worktree unchanged.
+- Ordinary Git and cd -P resolve the correct worktree.
+- git annex info fails with /../linked/sub.
+- GIT_DIR=$PWD/.git also fails with that same path.
+- GIT_DIR=<physical gitdir> alone succeeds, without GIT_WORK_TREE.
+- Replacing only .git with a gitdir file succeeds, with the exact same
+  relative core.worktree setting.
+
+Final experiment exited 0 (all expected results verified).
+Run evidence: see trace-paths.sh and docs/source-trace.md; private host logs are retained separately.
+
+Scope: source-level tracing plus black-box controlled interventions.
+No modified git-annex binary was compiled, no debugger was attached,
+no fix was implemented. Ticker warnings were also observed under amd64
+emulation; the expected controls still completed successfully.
+
+Fix directions: make submodule detection handle worktree gitdir layouts,
+and/or resolve the physical gitdir before lexical relative-path arithmetic.
+Either proposal needs implementation and regression testing upstream.

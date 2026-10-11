@@ -1,0 +1,17 @@
+{
+  "git_annex": {
+    "revision": "28ea958bf14a0ce0413b1ae8ac5c30b50e0c038e",
+    "repository": "git://git-annex.branchable.com/",
+    "archive": "git-annex-28ea958.tar.gz",
+    "sha256": "99ebe7c673a4d4d0d136f12059efc215c450a7fc26d1713915805d44cb7fb143"
+  },
+  "environment": {
+    "base": "docker.io/library/debian:sid-slim@sha256:1f11c32b03195c1b28c55e4579755659edae5c76dd76a69b4e4fb34c58fa8744",
+    "debian_snapshot": "20261010T000000Z",
+    "platform": "linux/amd64"
+  },
+  "patch": {
+    "path": "patches/resolve-physical-gitdir.patch",
+    "sha256": "8472b55a84400605cfa18cfae58d855b6af1fe46905f47f31b445f2caa43cdf3"
+  }
+}

@@ -1,0 +1,4 @@
+*.tar.gz binary
+*.patch -whitespace
+evidence/source/* -whitespace
+sources/COPYRIGHT -whitespace

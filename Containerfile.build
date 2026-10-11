@@ -1,0 +1,31 @@
+FROM docker.io/library/debian:sid-slim@sha256:1f11c32b03195c1b28c55e4579755659edae5c76dd76a69b4e4fb34c58fa8744
+# Freeze the build toolchain and transitive dependencies.
+RUN rm -f /etc/apt/sources.list.d/debian.sources \
+    && printf '%s\n' \
+      'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20261010T000000Z sid main' \
+      'deb-src [check-valid-until=no] http://snapshot.debian.org/archive/debian/20261010T000000Z sid main' \
+      > /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends build-essential cabal-install git ca-certificates patch \
+    && apt-get build-dep -y --no-install-recommends git-annex \
+    && rm -rf /var/lib/apt/lists/*
+COPY sources/git-annex-28ea958.tar.gz /tmp/source.tar.gz
+COPY sources/manifest.json Containerfile.build /provenance/
+RUN echo '99ebe7c673a4d4d0d136f12059efc215c450a7fc26d1713915805d44cb7fb143  /tmp/source.tar.gz' | sha256sum -c - \
+    && mkdir /src && tar -xzf /tmp/source.tar.gz -C /src && rm /tmp/source.tar.gz
+WORKDIR /src
+RUN make git-annex BUILDEROPTIONS='--offline -j2' \
+      BUILDERCOMMONOPTIONS='-f-Assistant -f-Dbus -f-MagicMime -f-Botan -f-Blake3 -f-XXH3' \
+    && mkdir -p /opt/baseline /opt/fixed \
+    && cp git-annex /opt/baseline/git-annex
+COPY patches/resolve-physical-gitdir.patch /tmp/fix.patch
+RUN patch -p1 < /tmp/fix.patch \
+    && make git-annex BUILDEROPTIONS='--offline -j2' \
+      BUILDERCOMMONOPTIONS='-f-Assistant -f-Dbus -f-MagicMime -f-Botan -f-Blake3 -f-XXH3' \
+    && cp git-annex /opt/fixed/git-annex
+ENV GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null \
+    GIT_AUTHOR_NAME=Reproducer GIT_COMMITTER_NAME=Reproducer \
+    GIT_AUTHOR_EMAIL=repro@example.invalid GIT_COMMITTER_EMAIL=repro@example.invalid
+COPY reproduce.sh trace-paths.sh /tests/
+COPY scripts/regression.sh /tests/regression.sh
+CMD ["sh", "-c", "PATH=/opt/fixed:$PATH sh /tests/reproduce.sh"]

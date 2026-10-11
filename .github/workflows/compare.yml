@@ -1,0 +1,27 @@
+name: Compile and compare
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install execution recorder
+        run: python3 -m pip install con-duct==0.22.0
+      - name: Compile and test both variants
+        run: |
+          mkdir -p "$RUNNER_TEMP/annex-duct"
+          duct --fail-time 0 --output-prefix "$RUNNER_TEMP/annex-duct/run_" -- python3 scripts/run-experiment.py --output results/local/compiled-comparison.json
+      - name: Retain selected results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: compiled-comparison
+          path: results/local/compiled-comparison.json
+          if-no-files-found: warn
+          retention-days: 90
